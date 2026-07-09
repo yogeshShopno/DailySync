@@ -2,7 +2,7 @@ import express from 'express';
 import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
-import usersRoutes from "./router/usersRoutes"
+import usersRoutes from "./router/usersRoutes.js"
 
 const PORT = process.env.PORT || 5050;
 
@@ -13,9 +13,9 @@ const app = express()
 const connectDB = async () => {
     try {
         const connection = await mongoose.connect(process.env.MONGO_URI)
-        console.log(`MongoDB Connected: ${connection.connection.host} ✔️`)
+        console.log(`MongoDB Connected ✔️`)
     } catch (error) {
-        console.error("Mongo connection Failed ❌")
+        console.error("MongoDB connection failed ❌")
 
     }
 }
@@ -32,9 +32,9 @@ app.get('/api', (req, res) =>
     res.send('Hello  from Exommerce, API is running ! '))
 
 
-app.use('api/users',usersRoutes)
+app.use('/api/users', usersRoutes)
 
 app.listen(PORT, () => {
     connectDB();
-    console.log("server listening to port:", PORT);
+    console.log("server listening to", `http://localhost:${PORT}/api`);
 })
