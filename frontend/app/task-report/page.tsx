@@ -105,14 +105,22 @@ export default function AdminTaskReportingPage() {
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem("dailysync-tasks");
-    if (stored) {
-      setTasks(JSON.parse(stored));
-    } else {
+    try {
+      const stored = localStorage.getItem("dailysync-tasks");
+      if (stored) {
+        setTasks(JSON.parse(stored));
+      } else {
+        setTasks(initialTasks);
+        try {
+          localStorage.setItem("dailysync-tasks", JSON.stringify(initialTasks));
+        } catch (e) {}
+      }
+    } catch (error) {
+      console.warn("Could not access localStorage:", error);
       setTasks(initialTasks);
-      localStorage.setItem("dailysync-tasks", JSON.stringify(initialTasks));
+    } finally {
+      setIsLoaded(true);
     }
-    setIsLoaded(true);
   }, []);
 
   const handleExport = () => {
@@ -161,51 +169,21 @@ export default function AdminTaskReportingPage() {
         {/* Header Section */}
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-theme-border pb-6">
           <div>
-            <p className="text-xs font-semibold text-theme-primary uppercase tracking-wider">
-              Admin Workspace
-            </p>
+            
             <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-theme-fg sm:text-3xl">
-              Task Reporting Dashboard
+              Staff Reports
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              onClick={handleExport}
-              disabled={isExporting}
-              isLoading={isExporting}
-            >
-              <Download className="-ml-1 mr-2 h-4 w-4" />
-              {isExporting ? "Exporting..." : "Export CSV"}
-            </Button>
-          </div>
+  
         </header>
-
-        {/* Stats Cards */}
-        <section aria-label="Task Statistics">
-          <TaskStats tasks={tasks} />
-        </section>
-
-        {/* Charts */}
-        <section aria-label="Task Visualizations">
-          <TaskChart tasks={tasks} />
-        </section>
 
         {/* Detailed Tasks Table */}
         <section
           aria-label="Detailed Tasks List"
           className="space-y-4 border-t border-theme-border pt-6"
         >
-          <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-theme-fg">
-                Admin Activity Registry
-              </h2>
-            </div>
-            <span className="self-start md:self-auto inline-flex items-center rounded-lg bg-theme-bg-inset px-2.5 py-1 text-xs font-semibold text-theme-fg-secondary border border-theme-border">
-              Total Logged: {tasks.length}
-            </span>
-          </div>
+          
           <TaskTable tasks={tasks} />
         </section>
       </div>

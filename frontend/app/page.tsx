@@ -15,6 +15,21 @@ import {
   Shield,
   Calendar,
 } from "lucide-react";
+import TaskStats from "../components/TaskStats";
+import TaskChart from "../components/TaskChart";
+
+interface Task {
+  id: string;
+  taskName: string;
+  userName: string;
+  userEmail: string;
+  startDate: string;
+  endDate: string;
+  totalMinutes: number;
+  status: "Completed" | "In Progress" | "Pending" | "Blocked";
+  priority: "Low" | "Medium" | "High";
+  projectName?: string;
+}
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
@@ -23,14 +38,30 @@ export default function Home() {
     return <LoginPanel />;
   }
 
+  const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [isLoaded, setIsLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (user?.role === "admin") {
+      try {
+        const stored = localStorage.getItem("dailysync-tasks");
+        if (stored) {
+          setTasks(JSON.parse(stored));
+        }
+      } catch (error) {
+        console.warn("Could not access localStorage:", error);
+      } finally {
+        setIsLoaded(true);
+      }
+    }
+  }, [user]);
+
   return (
     <Sidebar>
       <div className="p-6 lg:p-8 space-y-8 max-w-6xl mx-auto">
         {/* Welcome header */}
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 rounded-full bg-theme-primary-bg px-3 py-1 text-xs font-semibold text-theme-primary-fg">
-            <span>Welcome Back</span>
-          </div>
+        
           <h1 className="text-2xl font-extrabold tracking-tight text-theme-fg sm:text-3xl">
             Good {getGreeting()},{" "}
             <span className="bg-gradient-to-r from-theme-gradient-start to-theme-gradient-end bg-clip-text text-transparent">
@@ -65,53 +96,24 @@ export default function Home() {
           />
         </div>
 
-        {/* Action Cards */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-theme-fg-muted">
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* Staff Portal */}
-            {user?.role !== "admin" && (
-              <ActionCard
-                href="/log-task"
-                icon={<ClipboardList className="h-6 w-6" />}
-                title="Staff Task Logger"
-                description="Submit daily reporting tasks, log multiple activities with different statuses and time tracking."
-                accentClass="bg-theme-primary-bg text-theme-primary-fg"
-                arrowColorClass="text-theme-primary hover:text-theme-primary-hover"
-              />
-            )}
+        {/* Admin Dashboard View */}
+        {user?.role === "admin" ? (
+          <div className="space-y-8">
+            <section aria-label="Task Statistics">
+              <TaskStats tasks={tasks} />
+            </section>
+            
+            <section aria-label="Task Visualizations">
+              <TaskChart tasks={tasks} />
+            </section>
 
-            {/* Admin Dashboard – only visible to admin */}
-            {user?.role === "admin" && (
-              <ActionCard
-                href="/task-report"
-                icon={<BarChart3 className="h-6 w-6" />}
-                title="Task Reports Dashboard"
-                description="Review team metrics, completion rates, visual analytics, and search across all logged reports."
-                accentClass="bg-theme-primary-bg text-theme-primary-fg"
-                arrowColorClass="text-theme-primary hover:text-theme-primary-hover"
-              />
-            )}
-
-            {user?.role === "staff" && (
-              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-theme-border p-8 text-center">
-                <TrendingUp className="h-8 w-8 text-theme-fg-muted mb-3" />
-                <p className="text-sm font-semibold text-theme-fg-secondary">
-                  Performance Insights
-                </p>
-              </div>
-            )}
+           
           </div>
-        </div>
+        ) : (
+         <></>
+        )}
 
-        {/* Footer */}
-        <div className="border-t border-theme-border pt-6">
-          <p className="text-xs text-theme-fg-muted text-center">
-            &copy; {new Date().getFullYear()} DailySync. All rights reserved.
-          </p>
-        </div>
+       
       </div>
     </Sidebar>
   );

@@ -5,6 +5,7 @@ import { useAuth, MOCK_USERS } from "../context/AuthContext";
 import Input from "./ui/Input";
 import Button from "./ui/Button";
 import { Lock, Mail, Zap, Shield, User } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPanel() {
   const { login } = useAuth();
@@ -12,6 +13,7 @@ export default function LoginPanel() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +30,8 @@ export default function LoginPanel() {
       const result = login(email, password);
       if (!result.success) {
         setError(result.error || "Login failed");
+      } else {
+        router.push("/");
       }
       setIsLoading(false);
     }, 500);
@@ -42,6 +46,8 @@ export default function LoginPanel() {
       const result = login(mockEmail, mockPassword);
       if (!result.success) {
         setError(result.error || "Login failed");
+      } else {
+        router.push("/");
       }
       setIsLoading(false);
     }, 400);

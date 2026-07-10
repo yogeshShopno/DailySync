@@ -31,8 +31,8 @@ const navItems: NavItem[] = [
     roles: ["admin", "staff"],
   },
   {
-    label: "Log Tasks",
-    href: "/log-task",
+    label: "Tasks",
+    href: "/task",
     icon: <ClipboardList className="h-5 w-5" />,
     roles: ["staff"],
   },

@@ -175,19 +175,31 @@ export default function StaffTaskLoggingPage() {
 
   useEffect(() => {
     setSelectedDate(new Date().toISOString().split("T")[0]);
-    const stored = localStorage.getItem("dailysync-tasks");
-    if (stored) {
-      setTasks(JSON.parse(stored));
-    } else {
+    try {
+      const stored = localStorage.getItem("dailysync-tasks");
+      if (stored) {
+        setTasks(JSON.parse(stored));
+      } else {
+        setTasks(initialTasks);
+        try {
+          localStorage.setItem("dailysync-tasks", JSON.stringify(initialTasks));
+        } catch (e) {}
+      }
+    } catch (error) {
+      console.warn("Could not access localStorage:", error);
       setTasks(initialTasks);
-      localStorage.setItem("dailysync-tasks", JSON.stringify(initialTasks));
+    } finally {
+      setIsLoaded(true);
     }
-    setIsLoaded(true);
   }, []);
 
   const saveTasks = (newTasks: Task[]) => {
     setTasks(newTasks);
-    localStorage.setItem("dailysync-tasks", JSON.stringify(newTasks));
+    try {
+      localStorage.setItem("dailysync-tasks", JSON.stringify(newTasks));
+    } catch (e) {
+      console.warn("Could not save tasks to localStorage");
+    }
   };
 
   const handleAddTaskRow = () => {
@@ -280,7 +292,7 @@ export default function StaffTaskLoggingPage() {
 
   const handleEditTask = (task: Task) => {
     const project = staticProjects.find((p) => p.name === task.projectName) || staticProjects[0];
-    
+
     setTaskItems([
       {
         id: `item-edit-${task.id}`,
@@ -373,11 +385,9 @@ export default function StaffTaskLoggingPage() {
         {/* Header section */}
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-theme-border pb-6">
           <div>
-            <p className="text-xs font-semibold text-theme-primary uppercase tracking-wider">
-              Staff Activity Submission
-            </p>
+       
             <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-theme-fg">
-              Staff Task Logger
+              Task Reporting
             </h1>
           </div>
 
@@ -429,9 +439,7 @@ export default function StaffTaskLoggingPage() {
                 Your Logged Submissions
               </h2>
             </div>
-            <span className="inline-flex items-center rounded-lg bg-theme-bg-inset px-2.5 py-1 text-xs font-semibold text-theme-fg-secondary border border-theme-border">
-              Total Logged: {staffTasks.length}
-            </span>
+           
           </div>
 
           <div className="flex-1 space-y-6 overflow-y-auto max-h-[600px] pr-1">
@@ -451,9 +459,7 @@ export default function StaffTaskLoggingPage() {
                         })}
                       </span>
                     </div>
-                    <span className="text-[11px] font-semibold text-theme-primary">
-                      Daily Hours: {formatMinutes(group.totalMinutes)}
-                    </span>
+                 
                   </div>
 
                   {/* Day Tasks */}
@@ -468,23 +474,11 @@ export default function StaffTaskLoggingPage() {
                             <span className="text-[10px] font-bold uppercase tracking-wider text-theme-primary-fg">
                               {task.projectName || "Default Project"}
                             </span>
-                            <span className="text-theme-border">·</span>
-                            <span className="text-[10px] text-theme-fg-muted">
-                              Priority: {task.priority}
-                            </span>
                           </div>
                           <h4 className="text-sm font-bold text-theme-fg">
                             {task.taskName}
                           </h4>
-                          <div className="flex items-center gap-2 text-xs">
-                            <Clock className="h-3 w-3 text-theme-fg-muted" />
-                            <span className="text-theme-fg-muted">
-                              Time Spent:
-                            </span>
-                            <span className="font-semibold text-theme-fg-secondary">
-                              {formatMinutes(task.totalMinutes)}
-                            </span>
-                          </div>
+                       
                         </div>
 
                         <div className="mt-4 flex items-center justify-between md:mt-0 md:gap-4">
@@ -536,7 +530,7 @@ export default function StaffTaskLoggingPage() {
         <Modal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          title={editingTaskId ? "Edit Task" : "Daily Task Reporting"}
+          title={editingTaskId ? "Edit Task" : "Daily Reporting"}
           size="xl"
         >
           <form onSubmit={handleFormSubmit} className="space-y-5">
@@ -544,9 +538,9 @@ export default function StaffTaskLoggingPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-theme-bg-inset p-4 rounded-xl border border-theme-border">
               <div>
                 <span className="block text-[10px] font-bold text-theme-fg-muted uppercase tracking-wider mb-1">
-                  Assignee Staff Profile
+                  Staff
                 </span>
-                <div className="font-bold text-sm text-theme-fg">
+                <div className="font-bold flex-col text-sm text-theme-fg">
                   {currentStaff.name}{" "}
                   <span className="font-normal text-xs text-theme-fg-secondary">
                     ({currentStaff.email})
@@ -554,7 +548,7 @@ export default function StaffTaskLoggingPage() {
                 </div>
               </div>
               <Input
-                label="Reporting Date"
+                label="Date"
                 type="date"
                 required
                 value={selectedDate}
@@ -568,10 +562,7 @@ export default function StaffTaskLoggingPage() {
                 <span className="text-xs font-bold text-theme-fg-secondary uppercase tracking-wider">
                   Task Entries
                 </span>
-                <span className="text-[10px] font-semibold text-theme-fg-muted">
-                  Total: {taskItems.length}{" "}
-                  {taskItems.length === 1 ? "entry" : "entries"}
-                </span>
+
               </div>
 
               {taskItems.map((item, index) => (
@@ -579,60 +570,23 @@ export default function StaffTaskLoggingPage() {
                   key={item.id}
                   className="relative p-4 rounded-xl border border-theme-border bg-theme-bg-surface space-y-3"
                 >
-                  {/* Index and Remove */}
-                  <div className="flex items-center justify-between border-b border-theme-border pb-1.5">
-                    <span className="text-[10px] font-bold text-theme-fg-muted">
-                      # {index + 1}
-                    </span>
-                    {taskItems.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTaskRow(item.id)}
-                        className="text-[10px] font-bold text-theme-error hover:text-theme-error-hover flex items-center gap-1 cursor-pointer"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span>Remove Row</span>
-                      </button>
-                    )}
-                  </div>
+
 
                   {/* Project & Task Name */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <Select
-                      label="Project Allocation"
-                      options={staticProjects.map((proj) => ({
-                        value: proj.id,
-                        label: proj.name,
-                      }))}
-                      value={item.projectId}
+                  <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-3 items-end">
+                    {/* Task */}
+                    <Input
+                      label="Task"
+                      type="text"
+                      required
+                      placeholder="e.g. Implement user dashboard widgets"
+                      value={item.taskName}
                       onChange={(e) =>
-                        handleUpdateTaskItem(
-                          item.id,
-                          "projectId",
-                          e.target.value
-                        )
+                        handleUpdateTaskItem(item.id, "taskName", e.target.value)
                       }
                     />
-                    <div className="md:col-span-2">
-                      <Input
-                        label="Task Description / Activity"
-                        type="text"
-                        required
-                        placeholder="e.g. Implement user dashboard widgets"
-                        value={item.taskName}
-                        onChange={(e) =>
-                          handleUpdateTaskItem(
-                            item.id,
-                            "taskName",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
 
-                  {/* Status, Priority & Duration */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {/* Status */}
                     <Select
                       label="Status"
                       options={statusOptions}
@@ -641,66 +595,22 @@ export default function StaffTaskLoggingPage() {
                         handleUpdateTaskItem(item.id, "status", e.target.value)
                       }
                     />
-                    <Select
-                      label="Priority"
-                      options={priorityOptions}
-                      value={item.priority}
-                      onChange={(e) =>
-                        handleUpdateTaskItem(
-                          item.id,
-                          "priority",
-                          e.target.value
-                        )
-                      }
-                    />
-                    <div className="col-span-2">
-                      <span className="block text-[10px] font-bold text-theme-fg-muted uppercase tracking-wider mb-1.5">
-                        Duration Spent
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <div className="relative flex-1">
-                          <input
-                            type="number"
-                            min="0"
-                            className="block w-full rounded-lg border border-theme-border bg-theme-bg-surface py-2 pl-3 pr-8 text-sm text-theme-fg outline-none focus:border-theme-border-focus focus:ring-2 focus:ring-theme-ring"
-                            value={item.hours}
-                            onChange={(e) =>
-                              handleUpdateTaskItem(
-                                item.id,
-                                "hours",
-                                Math.max(0, parseInt(e.target.value) || 0)
-                              )
-                            }
-                          />
-                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-theme-fg-muted">
-                            hrs
-                          </span>
-                        </div>
-                        <div className="relative flex-1">
-                          <input
-                            type="number"
-                            min="0"
-                            max="59"
-                            className="block w-full rounded-lg border border-theme-border bg-theme-bg-surface py-2 pl-3 pr-8 text-sm text-theme-fg outline-none focus:border-theme-border-focus focus:ring-2 focus:ring-theme-ring"
-                            value={item.minutes}
-                            onChange={(e) =>
-                              handleUpdateTaskItem(
-                                item.id,
-                                "minutes",
-                                Math.min(
-                                  59,
-                                  Math.max(0, parseInt(e.target.value) || 0)
-                                )
-                              )
-                            }
-                          />
-                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-theme-fg-muted">
-                            mins
-                          </span>
-                        </div>
-                      </div>
+
+                    {/* Delete */}
+                    <div className="flex items-end h-full pb-1">
+                      {taskItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTaskRow(item.id)}
+                          className="h-10 w-10 flex items-center justify-center text-red-500  transition cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
+
+
                 </div>
               ))}
 
@@ -712,7 +622,7 @@ export default function StaffTaskLoggingPage() {
                   className="w-full flex items-center justify-center py-2.5 border-2 border-dashed border-theme-border rounded-xl text-xs font-semibold text-theme-fg-muted hover:border-theme-primary hover:text-theme-primary transition-colors cursor-pointer"
                 >
                   <Plus className="mr-1.5 h-4 w-4" />
-                  <span>Add another task row</span>
+                  <span>Add task </span>
                 </button>
               )}
             </div>
@@ -727,7 +637,7 @@ export default function StaffTaskLoggingPage() {
                 Cancel
               </Button>
               <Button type="submit" variant="primary">
-                {editingTaskId ? "Update Task" : "Submit Daily Report"}
+                {editingTaskId ? "Update Task" : "Submit Report"}
               </Button>
             </div>
           </form>
