@@ -47,15 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Restore session from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem("dailysync-auth");
-    if (stored) {
-      try {
+    try {
+      const stored = localStorage.getItem("dailysync-auth");
+      if (stored) {
         setUser(JSON.parse(stored));
-      } catch {
-        localStorage.removeItem("dailysync-auth");
       }
+    } catch (error) {
+      console.warn("Could not read auth from localStorage:", error);
+    } finally {
+      setLoaded(true);
     }
-    setLoaded(true);
   }, []);
 
   const login = (email: string, password: string) => {
@@ -67,30 +68,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const { password: _, ...safeUser } = found;
     setUser(safeUser);
-    localStorage.setItem("dailysync-auth", JSON.stringify(safeUser));
+    try {
+      localStorage.setItem("dailysync-auth", JSON.stringify(safeUser));
+    } catch (e) {
+      console.warn("Could not save to localStorage", e);
+    }
     return { success: true };
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("dailysync-auth");
+    try {
+      localStorage.removeItem("dailysync-auth");
+    } catch (e) {
+      console.warn("Could not remove from localStorage", e);
+    }
   };
 
-  // Don't render children until we've checked localStorage to prevent flash
-  if (!loaded) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-theme-bg">
-        <div className="flex items-center gap-2 text-sm font-semibold text-theme-fg-muted animate-pulse">
-          <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          Loading DailySync...
-        </div>
-      </div>
-    );
-  }
-
+  // Temporarily removed the !loaded check to ensure the app renders even if useEffect fails to fire
   return (
     <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout }}>
       {children}

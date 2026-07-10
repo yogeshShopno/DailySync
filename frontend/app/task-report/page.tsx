@@ -105,14 +105,22 @@ export default function AdminTaskReportingPage() {
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem("dailysync-tasks");
-    if (stored) {
-      setTasks(JSON.parse(stored));
-    } else {
+    try {
+      const stored = localStorage.getItem("dailysync-tasks");
+      if (stored) {
+        setTasks(JSON.parse(stored));
+      } else {
+        setTasks(initialTasks);
+        try {
+          localStorage.setItem("dailysync-tasks", JSON.stringify(initialTasks));
+        } catch (e) {}
+      }
+    } catch (error) {
+      console.warn("Could not access localStorage:", error);
       setTasks(initialTasks);
-      localStorage.setItem("dailysync-tasks", JSON.stringify(initialTasks));
+    } finally {
+      setIsLoaded(true);
     }
-    setIsLoaded(true);
   }, []);
 
   const handleExport = () => {

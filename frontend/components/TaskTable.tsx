@@ -11,7 +11,8 @@ import {
   TableHead,
   TableCell,
 } from "./ui/Table";
-import { Search, Calendar, ArrowUpDown, Frown, User } from "lucide-react";
+import { Search, Calendar, ArrowUpDown, Frown, User, ChevronDown, ChevronRight } from "lucide-react";
+import CalendarPicker from "./ui/CalendarPicker";
 
 interface Task {
   id: string;
@@ -38,12 +39,26 @@ export default function TaskTable({ tasks }: TaskTableProps) {
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [priorityFilter, setPriorityFilter] = useState<string>("All");
   const [employeeFilter, setEmployeeFilter] = useState<string>("All");
-  const [dateFilter, setDateFilter] = useState<string>("All");
+  const [dateFilter, setDateFilter] = useState<string>(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
   
   const [sortKey, setSortKey] = useState<SortKey>("endDate");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8; 
+
+  const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
+
+  const toggleEmployeeGroup = (empName: string) => {
+    setExpandedEmployees((prev) => {
+      const next = new Set(prev);
+      if (next.has(empName)) next.delete(empName);
+      else next.add(empName);
+      return next;
+    });
+  };
 
   const uniqueEmployees = useMemo(() => {
     const names = tasks.map((t) => t.userName);
@@ -126,19 +141,18 @@ export default function TaskTable({ tasks }: TaskTableProps) {
     }
 
     if (dateFilter !== "All") {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      result = result.filter((task) => {
-        const taskDate = new Date(task.endDate);
-        taskDate.setHours(0, 0, 0, 0);
-        const diffTime = today.getTime() - taskDate.getTime();
-        const diffDays = diffTime / (1000 * 60 * 60 * 24);
-        
-        if (dateFilter === "Today") return diffDays === 0;
-        if (dateFilter === "This Week") return diffDays >= 0 && diffDays <= 7;
-        if (dateFilter === "This Month") return diffDays >= 0 && diffDays <= 30;
-        return true;
-      });
+      const filterParts = dateFilter.split("-");
+      if (filterParts.length === 3) {
+        const [y, m, d] = filterParts.map(Number);
+        result = result.filter((task) => {
+          const taskDate = new Date(task.endDate);
+          return (
+            taskDate.getFullYear() === y &&
+            taskDate.getMonth() === m - 1 &&
+            taskDate.getDate() === d
+          );
+        });
+      }
     }
 
     result.sort((a, b) => {
@@ -168,44 +182,26 @@ export default function TaskTable({ tasks }: TaskTableProps) {
   }, [filteredSortedTasks, verifiedPage, itemsPerPage]);
 
   const groupedTasks = useMemo(() => {
-    const groupsByDate: { [date: string]: Task[] } = {};
+    const groupsByEmployee: { [emp: string]: Task[] } = {};
 
     paginatedTasks.forEach((task) => {
-      const dateStr = task.endDate;
-      if (!groupsByDate[dateStr]) groupsByDate[dateStr] = [];
-      groupsByDate[dateStr].push(task);
+      const emp = task.userName;
+      if (!groupsByEmployee[emp]) groupsByEmployee[emp] = [];
+      groupsByEmployee[emp].push(task);
     });
 
-    const orderedDates = Object.keys(groupsByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    if (sortKey === "endDate" && sortOrder === "asc") {
-        orderedDates.reverse();
-    }
+    const orderedEmployees = Object.keys(groupsByEmployee).sort();
 
-    return orderedDates.map((date) => {
-      const tasksForDate = groupsByDate[date];
-      const groupsByEmployee: { [emp: string]: Task[] } = {};
-      
-      tasksForDate.forEach(task => {
-        const emp = task.userName;
-        if (!groupsByEmployee[emp]) groupsByEmployee[emp] = [];
-        groupsByEmployee[emp].push(task);
-      });
-
-      const employees = Object.keys(groupsByEmployee).sort().map(empName => {
-        const tasksForEmp = groupsByEmployee[empName];
-        const totalMinutes = tasksForEmp.reduce((sum, t) => sum + t.totalMinutes, 0);
-        return {
-          employeeName: empName,
-          userEmail: tasksForEmp[0].userEmail,
-          tasks: tasksForEmp,
-          totalMinutes
-        };
-      });
+    return orderedEmployees.map((empName) => {
+      const tasksForEmp = groupsByEmployee[empName];
+      const totalEmpMinutes = tasksForEmp.reduce((sum, t) => sum + t.totalMinutes, 0);
 
       return {
-        date,
-        employees,
-        totalTasks: tasksForDate.length
+        employeeName: empName,
+        userEmail: tasksForEmp[0].userEmail,
+        tasks: tasksForEmp,
+        totalTasks: tasksForEmp.length,
+        totalEmpMinutes
       };
     });
   }, [paginatedTasks, sortKey, sortOrder]);
@@ -236,6 +232,20 @@ export default function TaskTable({ tasks }: TaskTableProps) {
           />
         </div>
 
+        {/* Date Filter Above Other Filters */}
+        <div className="flex items-center gap-3 bg-theme-bg-surface p-3 rounded-xl border border-theme-border w-fit shadow-sm">
+          <span className="text-xs font-bold text-theme-fg-muted uppercase tracking-wider">
+            Filter by Date:
+          </span>
+          <CalendarPicker
+            value={dateFilter === "All" ? null : dateFilter}
+            onChange={(date) => {
+              setDateFilter(date || "All");
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+
         {/* Dropdown Filters */}
         <div className="flex flex-wrap items-center gap-3 bg-theme-bg-surface p-3 rounded-xl border border-theme-border">
           <div className="flex items-center gap-2">
@@ -254,25 +264,6 @@ export default function TaskTable({ tasks }: TaskTableProps) {
               {uniqueEmployees.map(emp => (
                 <option key={emp} value={emp}>{emp}</option>
               ))}
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-theme-fg-muted">
-              Date:
-            </span>
-            <select
-              className="rounded-lg border border-theme-border bg-theme-bg-surface py-1.5 px-3 text-xs font-medium text-theme-fg outline-none focus:border-theme-border-focus focus:ring-2 focus:ring-theme-ring cursor-pointer"
-              value={dateFilter}
-              onChange={(e) => {
-                setDateFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="All">All Time</option>
-              <option value="Today">Today</option>
-              <option value="This Week">This Week</option>
-              <option value="This Month">This Month</option>
             </select>
           </div>
 
@@ -358,98 +349,83 @@ export default function TaskTable({ tasks }: TaskTableProps) {
         <TableBody>
           {groupedTasks.length > 0 ? (
             groupedTasks.map((group) => (
-              <React.Fragment key={group.date}>
-                {/* Level 1: Date Separator */}
-                <tr className="bg-theme-bg-inset select-none border-y border-theme-border">
+              <React.Fragment key={group.employeeName}>
+                {/* Level 1: Employee Separator */}
+                <tr 
+                  className="bg-theme-bg-inset select-none border-y border-theme-border cursor-pointer hover:bg-theme-bg-inset/80 transition-colors"
+                  onClick={() => toggleEmployeeGroup(group.employeeName)}
+                >
                   <td
                     colSpan={5}
-                    className="py-3 px-4 font-bold text-sm text-theme-fg"
+                    className="py-3 px-4"
                   >
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-theme-primary" />
-                      <span className="uppercase tracking-wider">
-                        {new Date(group.date).toLocaleDateString("en-US", {
-                          weekday: "long",
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </span>
-                      <span className="text-theme-border">|</span>
-                      <span className="text-theme-fg-muted font-semibold uppercase tracking-wider text-xs">
-                        {group.totalTasks} {group.totalTasks === 1 ? "task" : "tasks"} logged
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {expandedEmployees.has(group.employeeName) ? (
+                          <ChevronDown className="h-4 w-4 text-theme-fg-muted" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-theme-fg-muted" />
+                        )}
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-theme-gradient-start to-theme-gradient-end text-[10px] font-bold text-white shadow-sm">
+                          {getInitials(group.employeeName)}
+                        </div>
+                        <span className="font-bold text-sm text-theme-fg">
+                          {group.employeeName}
+                        </span>
+                        <span className="text-theme-border">|</span>
+                        <span className="text-theme-fg-muted font-semibold uppercase tracking-wider text-xs">
+                          {group.totalTasks} {group.totalTasks === 1 ? "task" : "tasks"} logged
+                        </span>
+                      </div>
+                      <div className="text-xs font-semibold text-theme-primary">
+                        Total Hours: {formatTime(group.totalEmpMinutes)}
+                      </div>
                     </div>
                   </td>
                 </tr>
 
-                {/* Level 2: Employee Grouping */}
-                {group.employees.map((emp) => (
-                  <React.Fragment key={emp.employeeName}>
-                    <tr className="bg-theme-bg-surface-hover/50 select-none border-b border-theme-border/50">
-                      <td colSpan={5} className="py-2.5 px-5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-theme-gradient-start to-theme-gradient-end text-[10px] font-semibold text-white">
-                              {getInitials(emp.employeeName)}
-                            </div>
-                            <div>
-                              <div className="font-semibold text-xs text-theme-fg">
-                                {emp.employeeName}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-xs font-semibold text-theme-primary">
-                            Daily Hours: {formatTime(emp.totalMinutes)}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                    
-                    {/* Level 3: Tasks for Employee */}
-                    {emp.tasks.map((task) => (
-                      <TableRow key={task.id}>
-                        <TableCell className="font-medium text-theme-fg pl-12">
-                          <div>
-                            <span>{task.taskName}</span>
-                            {task.projectName && (
-                              <span className="block text-[10px] text-theme-primary-fg font-bold mt-0.5 uppercase tracking-wider">
-                                {task.projectName}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={`inline-flex items-center rounded-lg px-2 py-1 text-xs font-semibold ${getStatusBadge(
-                              task.status
-                            )}`}
-                          >
-                            {task.status}
+                {/* Level 2: Tasks for Employee */}
+                {expandedEmployees.has(group.employeeName) && group.tasks.map((task) => (
+                  <TableRow key={task.id}>
+                    <TableCell className="font-medium text-theme-fg pl-12">
+                      <div>
+                        <span>{task.taskName}</span>
+                        {task.projectName && (
+                          <span className="block text-[10px] text-theme-primary-fg font-bold mt-0.5 uppercase tracking-wider">
+                            {task.projectName}
                           </span>
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityBadge(
-                              task.priority
-                            )}`}
-                          >
-                            {task.priority}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-theme-fg-secondary">
-                          {new Date(task.endDate).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
-                        </TableCell>
-                        <TableCell className="font-semibold text-theme-fg">
-                          {formatTime(task.totalMinutes)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </React.Fragment>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center rounded-lg px-2 py-1 text-xs font-semibold ${getStatusBadge(
+                          task.status
+                        )}`}
+                      >
+                        {task.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityBadge(
+                          task.priority
+                        )}`}
+                      >
+                        {task.priority}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-theme-fg-secondary">
+                      {new Date(task.endDate).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </TableCell>
+                    <TableCell className="font-semibold text-theme-fg">
+                      {formatTime(task.totalMinutes)}
+                    </TableCell>
+                  </TableRow>
                 ))}
               </React.Fragment>
             ))
