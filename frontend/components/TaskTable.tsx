@@ -23,7 +23,6 @@ interface Task {
   endDate: string;
   totalMinutes: number;
   status: "Completed" | "In Progress" | "Pending" | "Blocked";
-  priority: "Low" | "Medium" | "High";
   projectName?: string;
 }
 
@@ -31,13 +30,12 @@ interface TaskTableProps {
   tasks: Task[];
 }
 
-type SortKey = "taskName" | "endDate" | "totalMinutes" | "status" | "priority";
+type SortKey = "taskName" | "endDate" | "totalMinutes" | "status" ;
 type SortOrder = "asc" | "desc";
 
 export default function TaskTable({ tasks }: TaskTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
-  const [priorityFilter, setPriorityFilter] = useState<string>("All");
   const [employeeFilter, setEmployeeFilter] = useState<string>("All");
   const [dateFilter, setDateFilter] = useState<string>(() => {
     const today = new Date();
@@ -86,17 +84,6 @@ export default function TaskTable({ tasks }: TaskTableProps) {
     }
   };
 
-  const getPriorityBadge = (priority: Task["priority"]) => {
-    switch (priority) {
-      case "High":
-        return "bg-theme-error-bg text-theme-error-fg";
-      case "Medium":
-        return "bg-theme-warning-bg text-theme-warning-fg";
-      case "Low":
-        return "bg-theme-bg-inset text-theme-fg-muted";
-    }
-  };
-
   const formatTime = (minutes: number) => {
     const hrs = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -132,9 +119,7 @@ export default function TaskTable({ tasks }: TaskTableProps) {
       result = result.filter((task) => task.status === statusFilter);
     }
 
-    if (priorityFilter !== "All") {
-      result = result.filter((task) => task.priority === priorityFilter);
-    }
+
 
     if (employeeFilter !== "All") {
       result = result.filter((task) => task.userName === employeeFilter);
@@ -170,7 +155,7 @@ export default function TaskTable({ tasks }: TaskTableProps) {
     });
 
     return result;
-  }, [tasks, searchQuery, statusFilter, priorityFilter, employeeFilter, dateFilter, sortKey, sortOrder]);
+  }, [tasks, searchQuery, statusFilter,  employeeFilter, dateFilter, sortKey, sortOrder]);
 
   const totalItems = filteredSortedTasks.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
@@ -232,22 +217,25 @@ export default function TaskTable({ tasks }: TaskTableProps) {
           />
         </div>
 
-        {/* Date Filter Above Other Filters */}
-        <div className="flex items-center gap-3 bg-theme-bg-surface p-3 rounded-xl border border-theme-border w-fit shadow-sm">
-          <span className="text-xs font-bold text-theme-fg-muted uppercase tracking-wider">
+     
+
+        {/* Dropdown Filters */}
+        <div className="flex flex-wrap items-center gap-3 bg-theme-bg-surface p-3 rounded-xl border border-theme-border">
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-theme-fg-muted">
             Filter by Date:
-          </span>
-          <CalendarPicker
+            </span>
+            <CalendarPicker
             value={dateFilter === "All" ? null : dateFilter}
             onChange={(date) => {
               setDateFilter(date || "All");
               setCurrentPage(1);
             }}
           />
-        </div>
+          </div>
 
-        {/* Dropdown Filters */}
-        <div className="flex flex-wrap items-center gap-3 bg-theme-bg-surface p-3 rounded-xl border border-theme-border">
+
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-theme-fg-muted">
               Employee:
@@ -289,24 +277,7 @@ export default function TaskTable({ tasks }: TaskTableProps) {
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-theme-fg-muted">
-              Priority:
-            </span>
-            <select
-              className="rounded-lg border border-theme-border bg-theme-bg-surface py-1.5 px-3 text-xs font-medium text-theme-fg outline-none focus:border-theme-border-focus focus:ring-2 focus:ring-theme-ring cursor-pointer"
-              value={priorityFilter}
-              onChange={(e) => {
-                setPriorityFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="All">All Priorities</option>
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
-            </select>
-          </div>
+        
         </div>
       </div>
 
@@ -326,12 +297,7 @@ export default function TaskTable({ tasks }: TaskTableProps) {
                 <SortIndicator column="status" />
               </div>
             </TableHead>
-            <TableHead onClick={() => handleSort("priority")}>
-              <div className="flex items-center">
-                Priority
-                <SortIndicator column="priority" />
-              </div>
-            </TableHead>
+        
             <TableHead onClick={() => handleSort("endDate")}>
               <div className="flex items-center">
                 Due Date
@@ -372,14 +338,9 @@ export default function TaskTable({ tasks }: TaskTableProps) {
                         <span className="font-bold text-sm text-theme-fg">
                           {group.employeeName}
                         </span>
-                        <span className="text-theme-border">|</span>
-                        <span className="text-theme-fg-muted font-semibold uppercase tracking-wider text-xs">
-                          {group.totalTasks} {group.totalTasks === 1 ? "task" : "tasks"} logged
-                        </span>
+                        
                       </div>
-                      <div className="text-xs font-semibold text-theme-primary">
-                        Total Hours: {formatTime(group.totalEmpMinutes)}
-                      </div>
+                      
                     </div>
                   </td>
                 </tr>
@@ -406,15 +367,7 @@ export default function TaskTable({ tasks }: TaskTableProps) {
                         {task.status}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getPriorityBadge(
-                          task.priority
-                        )}`}
-                      >
-                        {task.priority}
-                      </span>
-                    </TableCell>
+      
                     <TableCell className="text-theme-fg-secondary">
                       {new Date(task.endDate).toLocaleDateString("en-US", {
                         month: "short",

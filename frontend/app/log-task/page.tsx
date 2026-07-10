@@ -385,11 +385,9 @@ export default function StaffTaskLoggingPage() {
         {/* Header section */}
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-theme-border pb-6">
           <div>
-            <p className="text-xs font-semibold text-theme-primary uppercase tracking-wider">
-              Staff Activity Submission
-            </p>
+       
             <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-theme-fg">
-              Staff Task Logger
+              Task Reporting
             </h1>
           </div>
 
@@ -441,9 +439,7 @@ export default function StaffTaskLoggingPage() {
                 Your Logged Submissions
               </h2>
             </div>
-            <span className="inline-flex items-center rounded-lg bg-theme-bg-inset px-2.5 py-1 text-xs font-semibold text-theme-fg-secondary border border-theme-border">
-              Total Logged: {staffTasks.length}
-            </span>
+           
           </div>
 
           <div className="flex-1 space-y-6 overflow-y-auto max-h-[600px] pr-1">
@@ -463,9 +459,7 @@ export default function StaffTaskLoggingPage() {
                         })}
                       </span>
                     </div>
-                    <span className="text-[11px] font-semibold text-theme-primary">
-                      Daily Hours: {formatMinutes(group.totalMinutes)}
-                    </span>
+                 
                   </div>
 
                   {/* Day Tasks */}
