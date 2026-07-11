@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
 import usersRoutes from "./router/usersRoutes.js"
-
+import { login } from "./controller/authController.js"
 const PORT = process.env.PORT || 5050;
 
 dotenv.config();
@@ -28,10 +28,11 @@ app.use(cors({
 app.use(express.json());
 
 
-app.get('/api', (req, res) =>
-    res.send('Hello  from Exommerce, API is running ! '))
+app.get('/api', (req, res) => {
+    res.send('Hello ! from Ecommerce , API is running ! ')
+})
 
-
+app.post('/api/login', login)
 app.use('/api/users', usersRoutes)
 
 app.listen(PORT, () => {

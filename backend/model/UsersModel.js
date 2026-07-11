@@ -15,7 +15,7 @@ const UsersSchema = new mongoose.Schema({
         require: true,
     },
     role: {
-        ref: "Role"
+        type: String,
     },
     isAdmin: {
         type: Boolean,
