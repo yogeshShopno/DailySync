@@ -24,12 +24,12 @@ export const login = async (req, res) => {
                 id: user._id,
                 email: user.email
             },
-            process.env.JWT_SECRET,
+            process.env.JWT_SECRETE,
             {
                 expiresIn: process.env.JWT_EXPIRES
             }
         )
-        return sendResponse(res, 200, true, "Logged in successfull !", { ...user, token });
+        return sendResponse(res, 200, true, "Logged in successfull !", { user, token });
     } catch (error) {
         return sendResponse(res, 500, false, error.message);
 
