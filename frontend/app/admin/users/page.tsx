@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Sidebar from "../../../components/Sidebar";
-import { userService, User } from "../../../services/userService";
+import { userService, User, UserPayload } from "../../../services/userService";
 import { roleService, Role } from "../../../services/roleService";
 import { departmentService, Department } from "../../../services/departmentService";
 import { Plus, Edit2, Trash2 } from "lucide-react";
@@ -255,7 +255,7 @@ function UsersPage() {
                 <div>
                   <label className="mb-1 block text-sm font-medium text-theme-fg-muted">Role</label>
                   <select
-                    value={formData.roleId}
+                    value={formData.roleId || ""}
                     onChange={(e) => setFormData({ ...formData, roleId: e.target.value })}
                     className="w-full rounded-lg border border-theme-border bg-theme-bg px-3 py-2 text-theme-fg focus:border-theme-primary focus:outline-none"
                   >
@@ -266,7 +266,7 @@ function UsersPage() {
                 <div>
                   <label className="mb-1 block text-sm font-medium text-theme-fg-muted">Department</label>
                   <select
-                    value={formData.departmentId}
+                    value={formData.departmentId || ""}
                     onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
                     className="w-full rounded-lg border border-theme-border bg-theme-bg px-3 py-2 text-theme-fg focus:border-theme-primary focus:outline-none"
                   >
