@@ -40,24 +40,29 @@ export const createUser = async (req, res) => {
         isAdmin,
         status
     } = req.body;
+    try {
 
-    const user = await Users.findOne({ email: email });
+        const user = await Users.findOne({ email: email });
 
-    if (user) {
-        return sendResponse(res, 400, true, "User already exist !")
+        if (user) {
+            return sendResponse(res, 400, true, "User already exist !")
+
+        }
+        const hashedPassword = await bcrypt.hash(password, 10)
+        const usersResponse = await Users.create({
+            name: name,
+            email: email,
+            password: hashedPassword,
+            role: role,
+            isAdmin: isAdmin,
+            status: status,
+        })
+        return sendResponse(res, 201, true, "User registered successfully !", usersResponse)
+    } catch (error) {
+        return sendResponse(res, 500, false, error.message);
 
     }
-    const hashedPassword = await bcrypt.hash(password,10)
-    const usersResponse = await Users.create({
-        name: name,
-        email: email,
-        password: hashedPassword,
-        role: role,
-        isAdmin: isAdmin,
-        status: status,
-    })
 
-    return sendResponse(res, 201, true, "User registered successfully !", usersResponse)
 }
 
 

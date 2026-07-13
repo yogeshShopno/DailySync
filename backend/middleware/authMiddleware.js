@@ -22,3 +22,7 @@ export const auth = (req, res, next) => {
 
     }
 }
+
+export const authorization =(req,res,next)=>{
+    
+} 

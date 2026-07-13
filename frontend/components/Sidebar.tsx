@@ -71,9 +71,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
           <span className="text-sm font-bold text-white tracking-tight">
             DailySync
           </span>
-          <span className="ml-1.5 inline-flex items-center rounded-md bg-theme-sidebar-active-bg px-1.5 py-0.5 text-[10px] font-semibold text-theme-sidebar-active-fg">
-            v0.1
-          </span>
+         
         </div>
       </div>
 

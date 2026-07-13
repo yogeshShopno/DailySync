@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
 import usersRoutes from "./router/usersRoutes.js"
+import tasksRoutes from "./router/tasksRoutes.js"
+
 import { login } from "./controller/authController.js"
 const PORT = process.env.PORT || 5050;
 
@@ -34,6 +36,8 @@ app.get('/api', (req, res) => {
 
 app.post('/api/login', login)
 app.use('/api/users', usersRoutes)
+app.use('/api/tasks', tasksRoutes)
+
 
 app.listen(PORT, () => {
     connectDB();

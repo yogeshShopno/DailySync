@@ -34,10 +34,6 @@ interface Task {
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
 
-  if (!isAuthenticated) {
-    return <LoginPanel />;
-  }
-
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [isLoaded, setIsLoaded] = React.useState(false);
 
@@ -55,6 +51,10 @@ export default function Home() {
       }
     }
   }, [user]);
+
+  if (!isAuthenticated) {
+    return <LoginPanel />;
+  }
 
   return (
     <Sidebar>
