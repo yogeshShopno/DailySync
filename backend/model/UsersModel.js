@@ -7,15 +7,20 @@ const UsersSchema = new mongoose.Schema({
     },
     email: {
         type: String,
-        require: true,
+        required: true,
         unique: true
     },
     password: {
         type: String,
-        require: true,
+        required: true,
     },
-    role: {
-        ref: "Role"
+    roleId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Role",
+    },
+    departmentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Department",
     },
     isAdmin: {
         type: Boolean,
@@ -25,6 +30,6 @@ const UsersSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     }
-},{timestamps:true})
+}, { timestamps: true })
 
-export default mongoose.model('Users',UsersSchema)
+export default mongoose.model('Users', UsersSchema)

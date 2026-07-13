@@ -59,13 +59,13 @@
   --theme-accent-fg: #6d28d9;
 
   /* Sidebar */
-  --theme-sidebar-bg: #0f172a;
-  --theme-sidebar-fg: #cbd5e1;
-  --theme-sidebar-fg-muted: #64748b;
-  --theme-sidebar-active-bg: rgba(99, 102, 241, 0.15);
-  --theme-sidebar-active-fg: #a5b4fc;
-  --theme-sidebar-hover-bg: rgba(255, 255, 255, 0.05);
-  --theme-sidebar-border: #1e293b;
+  --theme-sidebar-bg: #1e293b; /* slate-800 */
+  --theme-sidebar-fg: #f8fafc;
+  --theme-sidebar-fg-muted: #94a3b8;
+  --theme-sidebar-active-bg: rgba(99, 102, 241, 0.2);
+  --theme-sidebar-active-fg: #c7d2fe;
+  --theme-sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+  --theme-sidebar-border: #334155;
 
   /* Focus Ring */
   --theme-ring: rgba(99, 102, 241, 0.4);
@@ -78,12 +78,12 @@
 /* ─── Dark Theme (for future use) ─── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --theme-bg: #020617;
-    --theme-bg-surface: #0f172a;
-    --theme-bg-surface-hover: #1e293b;
+    --theme-bg: #0f172a; /* slate-900 instead of slate-950 */
+    --theme-bg-surface: #1e293b; /* slate-800 */
+    --theme-bg-surface-hover: #334155; /* slate-700 */
     --theme-bg-elevated: #1e293b;
-    --theme-bg-overlay: rgba(0, 0, 0, 0.6);
-    --theme-bg-inset: #0f172a;
+    --theme-bg-overlay: rgba(0, 0, 0, 0.5);
+    --theme-bg-inset: #111827; /* gray-900 */
 
     --theme-fg: #f1f5f9;
     --theme-fg-secondary: #94a3b8;
@@ -125,13 +125,13 @@
     --theme-accent-bg: rgba(139, 92, 246, 0.1);
     --theme-accent-fg: #c4b5fd;
 
-    --theme-sidebar-bg: #020617;
-    --theme-sidebar-fg: #94a3b8;
-    --theme-sidebar-fg-muted: #475569;
-    --theme-sidebar-active-bg: rgba(129, 140, 248, 0.15);
-    --theme-sidebar-active-fg: #c7d2fe;
-    --theme-sidebar-hover-bg: rgba(255, 255, 255, 0.04);
-    --theme-sidebar-border: #0f172a;
+    --theme-sidebar-bg: #0f172a; /* slate-900 */
+    --theme-sidebar-fg: #e2e8f0;
+    --theme-sidebar-fg-muted: #94a3b8;
+    --theme-sidebar-active-bg: rgba(129, 140, 248, 0.2);
+    --theme-sidebar-active-fg: #e0e7ff;
+    --theme-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+    --theme-sidebar-border: #1e293b;
 
     --theme-ring: rgba(129, 140, 248, 0.35);
 

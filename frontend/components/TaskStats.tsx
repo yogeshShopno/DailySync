@@ -8,6 +8,8 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+import type { DashboardStats } from "../services/taskService";
+
 interface Task {
   id: string;
   taskName: string;
@@ -22,15 +24,26 @@ interface Task {
 }
 
 interface TaskStatsProps {
-  tasks: Task[];
+  tasks?: Task[];
+  stats?: DashboardStats | null;
 }
 
-export default function TaskStats({ tasks }: TaskStatsProps) {
-  const total = tasks.length;
-  const completed = tasks.filter((t) => t.status === "Completed").length;
-  const inProgress = tasks.filter((t) => t.status === "In Progress").length;
-  const blocked = tasks.filter((t) => t.status === "Blocked").length;
-  const pending = tasks.filter((t) => t.status === "Pending").length;
+export default function TaskStats({ tasks = [], stats }: TaskStatsProps) {
+  let total = 0, completed = 0, inProgress = 0, blocked = 0, pending = 0;
+
+  if (stats) {
+    total = stats.total;
+    completed = stats.completed;
+    inProgress = stats.inProgress;
+    blocked = stats.blocked;
+    pending = stats.pending;
+  } else {
+    total = tasks.length;
+    completed = tasks.filter((t) => t.status === "Completed").length;
+    inProgress = tasks.filter((t) => t.status === "In Progress").length;
+    blocked = tasks.filter((t) => t.status === "Blocked").length;
+    pending = tasks.filter((t) => t.status === "Pending").length;
+  }
 
   const completedPct = total > 0 ? Math.round((completed / total) * 100) : 0;
   const inProgressPct = total > 0 ? Math.round((inProgress / total) * 100) : 0;

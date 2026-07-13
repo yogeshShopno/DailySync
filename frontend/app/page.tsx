@@ -6,62 +6,50 @@ import { useAuth } from "../context/AuthContext";
 import LoginPanel from "../components/LoginPanel";
 import Sidebar from "../components/Sidebar";
 import {
-  ClipboardList,
-  BarChart3,
-  Users,
-  TrendingUp,
   ArrowRight,
-  
   Shield,
   Calendar,
+  Users,
 } from "lucide-react";
 import TaskStats from "../components/TaskStats";
 import TaskChart from "../components/TaskChart";
-
-interface Task {
-  id: string;
-  taskName: string;
-  userName: string;
-  userEmail: string;
-  startDate: string;
-  endDate: string;
-  totalMinutes: number;
-  status: "Completed" | "In Progress" | "Pending" | "Blocked";
-  priority: "Low" | "Medium" | "High";
-  projectName?: string;
-}
+import { fetchTasks, type Task } from "../services/taskService";
 
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
-
-  if (!isAuthenticated) {
-    return <LoginPanel />;
-  }
-
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [isLoaded, setIsLoaded] = React.useState(false);
 
   React.useEffect(() => {
-    if (user?.role === "admin") {
+    if (!isAuthenticated) return;
+    if (user?.role !== "admin") {
+      setIsLoaded(true);
+      return;
+    }
+
+    const loadTasks = async () => {
       try {
-        const stored = localStorage.getItem("dailysync-tasks");
-        if (stored) {
-          setTasks(JSON.parse(stored));
-        }
-      } catch (error) {
-        console.warn("Could not access localStorage:", error);
+        const data = await fetchTasks();
+        setTasks(data);
+      } catch (err) {
+        console.warn("Could not load tasks:", err);
       } finally {
         setIsLoaded(true);
       }
-    }
-  }, [user]);
+    };
+
+    loadTasks();
+  }, [isAuthenticated, user]);
+
+  if (!isAuthenticated) {
+    return <LoginPanel />;
+  }
 
   return (
     <Sidebar>
       <div className="p-6 lg:p-8 space-y-8 max-w-6xl mx-auto">
         {/* Welcome header */}
         <div className="space-y-1">
-        
           <h1 className="text-2xl font-extrabold tracking-tight text-theme-fg sm:text-3xl">
             Good {getGreeting()},{" "}
             <span className="bg-gradient-to-r from-theme-gradient-start to-theme-gradient-end bg-clip-text text-transparent">
@@ -90,8 +78,8 @@ export default function Home() {
           />
           <QuickStatCard
             icon={<Users className="h-5 w-5" />}
-            label="Team Size"
-            value="4 Members"
+            label="Total Tasks"
+            value={isLoaded ? String(tasks.length) : "…"}
             colorClass="bg-theme-info-bg text-theme-info-fg"
           />
         </div>
@@ -99,21 +87,44 @@ export default function Home() {
         {/* Admin Dashboard View */}
         {user?.role === "admin" ? (
           <div className="space-y-8">
-            <section aria-label="Task Statistics">
-              <TaskStats tasks={tasks} />
-            </section>
-            
-            <section aria-label="Task Visualizations">
-              <TaskChart tasks={tasks} />
-            </section>
-
-           
+            {isLoaded && tasks.length > 0 && (
+              <>
+                <section aria-label="Task Statistics">
+                  <TaskStats tasks={tasks} />
+                </section>
+                <section aria-label="Task Visualizations">
+                  <TaskChart tasks={tasks} />
+                </section>
+              </>
+            )}
+            {isLoaded && tasks.length === 0 && (
+              <div className="rounded-2xl border border-theme-border bg-theme-bg-surface p-12 text-center text-theme-fg-muted">
+                <p className="text-sm font-medium">
+                  No tasks yet. Staff can log tasks from the{" "}
+                  <Link href="/task" className="text-theme-primary hover:underline font-semibold">
+                    Task Reporting
+                  </Link>{" "}
+                  page.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
-         <></>
+          /* Staff quick-action */
+          <div className="rounded-2xl border border-theme-border bg-theme-bg-surface p-8 flex flex-col items-center gap-4 text-center">
+            <h2 className="text-lg font-bold text-theme-fg">Ready to log your work?</h2>
+            <p className="text-sm text-theme-fg-secondary max-w-sm">
+              Head to the Task Reporting page to submit your daily timesheets and track your progress.
+            </p>
+            <Link
+              href="/task"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-theme-gradient-start to-theme-gradient-end px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
+            >
+              Report Tasks
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
         )}
-
-       
       </div>
     </Sidebar>
   );
@@ -147,37 +158,5 @@ function QuickStatCard({
         <p className="text-sm font-bold text-theme-fg">{value}</p>
       </div>
     </div>
-  );
-}
-
-function ActionCard({
-  href,
-  icon,
-  title,
-  description,
-  accentClass,
-  arrowColorClass,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  accentClass: string;
-  arrowColorClass: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group relative flex flex-col rounded-2xl border border-theme-border bg-theme-bg-surface p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-    >
-      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${accentClass}`}>
-        {icon}
-      </div>
-      <h3 className="mt-4 text-base font-bold text-theme-fg flex-1">{title}</h3>
-      <div className={`mt-4 inline-flex items-center text-sm font-semibold ${arrowColorClass} transition-colors`}>
-        <span>Open</span>
-        <ArrowRight className="ml-1.5 h-4 w-4 transform transition-transform group-hover:translate-x-1" />
-      </div>
-    </Link>
   );
 }

@@ -2,6 +2,8 @@
 
 import React from "react";
 
+import type { DashboardStats } from "../services/taskService";
+
 interface Task {
   id: string;
   taskName: string;
@@ -16,15 +18,26 @@ interface Task {
 }
 
 interface TaskChartProps {
-  tasks: Task[];
+  tasks?: Task[];
+  stats?: DashboardStats | null;
 }
 
-export default function TaskChart({ tasks }: TaskChartProps) {
-  const total = tasks.length;
-  const completed = tasks.filter((t) => t.status === "Completed").length;
-  const inProgress = tasks.filter((t) => t.status === "In Progress").length;
-  const pending = tasks.filter((t) => t.status === "Pending").length;
-  const blocked = tasks.filter((t) => t.status === "Blocked").length;
+export default function TaskChart({ tasks = [], stats }: TaskChartProps) {
+  let total = 0, completed = 0, inProgress = 0, pending = 0, blocked = 0;
+
+  if (stats) {
+    total = stats.total;
+    completed = stats.completed;
+    inProgress = stats.inProgress;
+    pending = stats.pending;
+    blocked = stats.blocked;
+  } else {
+    total = tasks.length;
+    completed = tasks.filter((t) => t.status === "Completed").length;
+    inProgress = tasks.filter((t) => t.status === "In Progress").length;
+    pending = tasks.filter((t) => t.status === "Pending").length;
+    blocked = tasks.filter((t) => t.status === "Blocked").length;
+  }
 
   const completedPct = total > 0 ? (completed / total) * 100 : 0;
   const inProgressPct = total > 0 ? (inProgress / total) * 100 : 0;
