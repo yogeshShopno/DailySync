@@ -1,41 +1,42 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-
-export type UserRole = "admin" | "staff";
+import { loginUser } from "../services/authService";
 
 export interface AppUser {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
-  avatar: string; // initials
+  role: string;
+  avatar: string; // initials derived from name
+  isAdmin: boolean;
+  permissions: string[];
 }
 
 interface AuthContextType {
   user: AppUser | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => { success: boolean; error?: string };
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
-/* ─── Static Users ─── */
-export const MOCK_USERS: (AppUser & { password: string })[] = [
+// Quick-login display cards (no passwords — just for UI buttons)
+export const QUICK_LOGIN_CARDS = [
   {
-    id: "user-1",
-    name: "Yogesh Jain",
+    id: "card-admin",
+    name: "Admin User",
     email: "admin@dailysync.com",
+    password: "Admin@123",
     role: "admin",
-    avatar: "YJ",
-    password: "admin123",
+    avatar: "AD",
   },
   {
-    id: "user-2",
-    name: "Sarah Connor",
+    id: "card-staff",
+    name: "Staff User",
     email: "staff@dailysync.com",
+    password: "Staff@123",
     role: "staff",
-    avatar: "SC",
-    password: "staff123",
+    avatar: "ST",
   },
 ];
 
@@ -43,7 +44,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
-  const [loaded, setLoaded] = useState(false);
 
   // Restore session from localStorage on mount
   useEffect(() => {
@@ -54,38 +54,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.warn("Could not read auth from localStorage:", error);
-    } finally {
-      setLoaded(true);
     }
   }, []);
 
-  const login = (email: string, password: string) => {
-    const found = MOCK_USERS.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    );
-    if (!found) {
-      return { success: false, error: "Invalid email or password" };
-    }
-    const { password: _, ...safeUser } = found;
-    setUser(safeUser);
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
-      localStorage.setItem("dailysync-auth", JSON.stringify(safeUser));
-    } catch (e) {
-      console.warn("Could not save to localStorage", e);
+      const data = await loginUser(email, password);
+
+      // Derive initials from name
+      const initials = (data.user.name || "?")
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+        .substring(0, 2);
+
+      const roleName = data.user.role || (data.user.isAdmin ? "admin" : "staff");
+
+      const appUser: AppUser = {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        role: roleName.toLowerCase(),
+        avatar: initials,
+        isAdmin: data.user.isAdmin,
+        permissions: data.user.permissions || [],
+      };
+
+      setUser(appUser);
+
+      // Persist user profile and token separately
+      localStorage.setItem("dailysync-auth", JSON.stringify(appUser));
+      localStorage.setItem("dailysync-token", data.token);
+
+      return { success: true };
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message || "Login failed. Please check your credentials.";
+      return { success: false, error: message };
     }
-    return { success: true };
   };
 
   const logout = () => {
     setUser(null);
     try {
       localStorage.removeItem("dailysync-auth");
+      localStorage.removeItem("dailysync-token");
     } catch (e) {
       console.warn("Could not remove from localStorage", e);
     }
   };
 
-  // Temporarily removed the !loaded check to ensure the app renders even if useEffect fails to fire
   return (
     <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout }}>
       {children}

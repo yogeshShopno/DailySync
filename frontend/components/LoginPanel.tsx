@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAuth, MOCK_USERS } from "../context/AuthContext";
+import { useAuth, QUICK_LOGIN_CARDS } from "../context/AuthContext";
 import Input from "./ui/Input";
 import Button from "./ui/Button";
-import { Lock, Mail, Zap, Shield, User } from "lucide-react";
+import { Lock, Mail, Shield, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPanel() {
@@ -15,7 +15,7 @@ export default function LoginPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -25,32 +25,27 @@ export default function LoginPanel() {
     }
 
     setIsLoading(true);
-    // Simulate network delay for better UX
-    setTimeout(() => {
-      const result = login(email, password);
-      if (!result.success) {
-        setError(result.error || "Login failed");
-      } else {
-        router.push("/");
-      }
-      setIsLoading(false);
-    }, 500);
+    const result = await login(email, password);
+    if (!result.success) {
+      setError(result.error || "Login failed");
+    } else {
+      router.push("/");
+    }
+    setIsLoading(false);
   };
 
-  const handleQuickLogin = (mockEmail: string, mockPassword: string) => {
+  const handleQuickLogin = async (mockEmail: string, mockPassword: string) => {
     setEmail(mockEmail);
     setPassword(mockPassword);
     setError("");
     setIsLoading(true);
-    setTimeout(() => {
-      const result = login(mockEmail, mockPassword);
-      if (!result.success) {
-        setError(result.error || "Login failed");
-      } else {
-        router.push("/");
-      }
-      setIsLoading(false);
-    }, 400);
+    const result = await login(mockEmail, mockPassword);
+    if (!result.success) {
+      setError(result.error || "Login failed");
+    } else {
+      router.push("/");
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -116,6 +111,16 @@ export default function LoginPanel() {
               </div>
             )}
 
+            {/* Show error for empty fields */}
+            {error && (!email.trim() || !password.trim()) && (
+              <div className="flex items-center gap-2 rounded-lg bg-theme-error-bg border border-theme-error/20 px-3 py-2.5 text-xs font-medium text-theme-error-fg">
+                <svg className="h-4 w-4 text-theme-error flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {error}
+              </div>
+            )}
+
             <Button
               type="submit"
               fullWidth
@@ -140,32 +145,32 @@ export default function LoginPanel() {
 
           {/* Quick login buttons */}
           <div className="grid grid-cols-2 gap-3">
-            {MOCK_USERS.map((mockUser) => (
+            {QUICK_LOGIN_CARDS.map((card) => (
               <button
-                key={mockUser.id}
-                onClick={() => handleQuickLogin(mockUser.email, mockUser.password)}
+                key={card.id}
+                onClick={() => handleQuickLogin(card.email, card.password)}
                 disabled={isLoading}
                 className="group flex flex-col items-center gap-2 rounded-xl border border-theme-border p-4 transition-all duration-150 hover:border-theme-primary hover:bg-theme-primary-bg cursor-pointer disabled:opacity-50"
               >
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${
-                    mockUser.role === "admin"
+                    card.role === "admin"
                       ? "bg-theme-warning-bg text-theme-warning-fg"
                       : "bg-theme-primary-bg text-theme-primary-fg"
                   }`}
                 >
-                  {mockUser.avatar}
+                  {card.avatar}
                 </div>
                 <span className="text-xs font-semibold text-theme-fg group-hover:text-theme-primary">
-                  {mockUser.name}
+                  {card.name}
                 </span>
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-theme-fg-muted">
-                  {mockUser.role === "admin" ? (
+                  {card.role === "admin" ? (
                     <Shield className="h-3 w-3" />
                   ) : (
                     <User className="h-3 w-3" />
                   )}
-                  <span className="capitalize">{mockUser.role}</span>
+                  <span className="capitalize">{card.role}</span>
                 </span>
               </button>
             ))}

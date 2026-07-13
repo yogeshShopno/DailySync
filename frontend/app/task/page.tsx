@@ -8,28 +8,25 @@ import Modal from "../../components/ui/Modal";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
+import FormError from "../../components/ui/FormError";
 import {
   Plus,
   Trash2,
   Calendar,
   CheckCircle2,
-  Clock,
   AlertTriangle,
   Edit2,
+  Loader2,
 } from "lucide-react";
-
-interface Task {
-  id: string;
-  taskName: string;
-  userName: string;
-  userEmail: string;
-  startDate: string;
-  endDate: string;
-  totalMinutes: number;
-  status: "Completed" | "In Progress" | "Pending" | "Blocked";
-  priority: "Low" | "Medium" | "High";
-  projectName?: string;
-}
+import {
+  fetchTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+  type Task,
+  type CreateTaskPayload,
+} from "../../services/taskService";
+import { projectService, type Project } from "../../services/projectService";
 
 interface TaskFormItem {
   id: string;
@@ -41,97 +38,7 @@ interface TaskFormItem {
   minutes: number;
 }
 
-// Static project list
-const staticProjects = [
-  { id: "proj-1", name: "DailySync Dashboard" },
-  { id: "proj-2", name: "Enterprise CRM Integration" },
-  { id: "proj-3", name: "Automated Test Pipeline" },
-  { id: "proj-4", name: "API Gateway Security" },
-  { id: "proj-5", name: "Customer Mobile App" },
-];
-
-// Static staff list
-const staticStaff = [
-  { name: "Yogesh Jain", email: "yogesh@dailysync.com" },
-  { name: "John Doe", email: "john@dailysync.com" },
-  { name: "Sarah Connor", email: "sarah@dailysync.com" },
-  { name: "Alex Mercer", email: "alex@dailysync.com" },
-];
-
-const initialTasks: Task[] = [
-  {
-    id: "task-1",
-    taskName: "Complete Backend User Authentication",
-    userName: "Yogesh Jain",
-    userEmail: "yogesh@dailysync.com",
-    startDate: "2026-07-01",
-    endDate: "2026-07-05",
-    totalMinutes: 240,
-    status: "Completed",
-    priority: "High",
-    projectName: "DailySync Dashboard",
-  },
-  {
-    id: "task-2",
-    taskName: "Setup MongoDB connection and schemas",
-    userName: "John Doe",
-    userEmail: "john@dailysync.com",
-    startDate: "2026-07-02",
-    endDate: "2026-07-04",
-    totalMinutes: 180,
-    status: "Completed",
-    priority: "High",
-    projectName: "DailySync Dashboard",
-  },
-  {
-    id: "task-3",
-    taskName: "Build Task Reporting Dashboard UI",
-    userName: "Yogesh Jain",
-    userEmail: "yogesh@dailysync.com",
-    startDate: "2026-07-08",
-    endDate: "2026-07-10",
-    totalMinutes: 120,
-    status: "In Progress",
-    priority: "High",
-    projectName: "DailySync Dashboard",
-  },
-  {
-    id: "task-4",
-    taskName: "Design UI components & cards",
-    userName: "Sarah Connor",
-    userEmail: "sarah@dailysync.com",
-    startDate: "2026-07-04",
-    endDate: "2026-07-07",
-    totalMinutes: 150,
-    status: "Completed",
-    priority: "Medium",
-    projectName: "Customer Mobile App",
-  },
-  {
-    id: "task-5",
-    taskName: "Integrate push notification service",
-    userName: "John Doe",
-    userEmail: "john@dailysync.com",
-    startDate: "2026-07-10",
-    endDate: "2026-07-15",
-    totalMinutes: 0,
-    status: "Pending",
-    priority: "Medium",
-    projectName: "Customer Mobile App",
-  },
-  {
-    id: "task-6",
-    taskName: "Fix navigation drawer styling bug",
-    userName: "Sarah Connor",
-    userEmail: "sarah@dailysync.com",
-    startDate: "2026-07-08",
-    endDate: "2026-07-09",
-    totalMinutes: 45,
-    status: "Blocked",
-    priority: "Low",
-    projectName: "Customer Mobile App",
-  },
-];
+// Removed static projects
 
 const statusOptions = [
   { value: "Completed", label: "Completed" },
@@ -150,64 +57,69 @@ export default function StaffTaskLoggingPage() {
   const { isAuthenticated, user } = useAuth();
 
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  // Modal control & date/staff states
+  // Modal control & date states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [selectedStaffIndex, setSelectedStaffIndex] = useState(0);
   const [selectedDate, setSelectedDate] = useState("");
 
-  // Dynamic Task Form Items state
-  const [taskItems, setTaskItems] = useState<TaskFormItem[]>([
-    {
-      id: "item-init",
-      projectId: staticProjects[0].id,
-      taskName: "",
-      status: "In Progress",
-      priority: "Medium",
-      hours: 1,
-      minutes: 0,
-    },
-  ]);
+  // Initial form items are set after projects load
+  const [taskItems, setTaskItems] = useState<TaskFormItem[]>([]);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
+  // ── Load tasks from API ─────────────────────────────────────────────────────
   useEffect(() => {
     setSelectedDate(new Date().toISOString().split("T")[0]);
-    try {
-      const stored = localStorage.getItem("dailysync-tasks");
-      if (stored) {
-        setTasks(JSON.parse(stored));
-      } else {
-        setTasks(initialTasks);
-        try {
-          localStorage.setItem("dailysync-tasks", JSON.stringify(initialTasks));
-        } catch (e) {}
-      }
-    } catch (error) {
-      console.warn("Could not access localStorage:", error);
-      setTasks(initialTasks);
-    } finally {
-      setIsLoaded(true);
-    }
-  }, []);
+    if (!isAuthenticated) return;
 
-  const saveTasks = (newTasks: Task[]) => {
-    setTasks(newTasks);
-    try {
-      localStorage.setItem("dailysync-tasks", JSON.stringify(newTasks));
-    } catch (e) {
-      console.warn("Could not save tasks to localStorage");
-    }
+    const loadData = async () => {
+      try {
+        const [taskData, projectData] = await Promise.all([
+          fetchTasks(),
+          projectService.fetchProjects()
+        ]);
+        setTasks(taskData);
+        setProjects(projectData);
+        if (projectData.length > 0) {
+          setTaskItems([
+            {
+              id: "item-init",
+              projectId: projectData[0]._id,
+              taskName: "",
+              status: "In Progress",
+              priority: "Medium",
+              hours: 1,
+              minutes: 0,
+            }
+          ]);
+        }
+      } catch (err: any) {
+        setApiError(err?.response?.data?.message || "Failed to load tasks.");
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+    loadData();
+  }, [isAuthenticated]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4500);
   };
 
+  // ── Form Handlers ───────────────────────────────────────────────────────────
   const handleAddTaskRow = () => {
     setTaskItems((prev) => [
       ...prev,
       {
         id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        projectId: staticProjects[0].id,
+        projectId: projects[0]?._id || "",
         taskName: "",
         status: "In Progress",
         priority: "Medium",
@@ -234,95 +146,119 @@ export default function StaffTaskLoggingPage() {
     );
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
 
     const emptyTask = taskItems.find((t) => !t.taskName.trim());
     if (emptyTask) {
-      alert("Please enter descriptions for all work activities.");
+      setFormError("Please enter descriptions for all work activities.");
       return;
     }
 
-    const staff = staticStaff[selectedStaffIndex];
-    const newTasks: Task[] = taskItems.map((item, index) => {
-      const project = staticProjects.find((p) => p.id === item.projectId);
-      const totalMinutes = Number(item.hours) * 60 + Number(item.minutes);
+    setIsSubmitting(true);
+    try {
+      if (editingTaskId) {
+        // Update existing task (only first item in edit mode)
+        const item = taskItems[0];
+        const totalMinutes = Number(item.hours) * 60 + Number(item.minutes);
 
-      return {
-        id: editingTaskId || `task-${Date.now()}-${index}`,
-        taskName: item.taskName.trim(),
-        userName: staff.name,
-        userEmail: staff.email,
-        startDate: selectedDate,
-        endDate: selectedDate,
-        totalMinutes,
-        status: item.status,
-        priority: item.priority,
-        projectName: project?.name || "Unassigned Project",
-      };
-    });
+        const payload: Partial<CreateTaskPayload> = {
+          taskName: item.taskName.trim(),
+          startDate: selectedDate,
+          endDate: selectedDate,
+          totalMinutes,
+          status: item.status,
+          priority: item.priority,
+          projectId: item.projectId || undefined,
+        };
 
-    let updatedTasks;
-    if (editingTaskId) {
-      updatedTasks = tasks.map((t) => (t.id === editingTaskId ? newTasks[0] : t));
-      setToastMessage("Task updated successfully!");
-    } else {
-      updatedTasks = [...newTasks, ...tasks];
-      setToastMessage(`Logged ${newTasks.length} task entries successfully!`);
+        const updated = await updateTask(editingTaskId, payload);
+        setTasks((prev) =>
+          prev.map((t) => (t.id === editingTaskId ? updated : t))
+        );
+        showToast("Task updated successfully!");
+      } else {
+        // Create multiple tasks
+        const created: Task[] = [];
+        for (const item of taskItems) {
+          const totalMinutes = Number(item.hours) * 60 + Number(item.minutes);
+
+          const payload: CreateTaskPayload = {
+            taskName: item.taskName.trim(),
+            startDate: selectedDate,
+            endDate: selectedDate,
+            totalMinutes,
+            status: item.status,
+            priority: item.priority,
+            projectId: item.projectId || undefined,
+          };
+
+          const task = await createTask(payload);
+          created.push(task);
+        }
+        setTasks((prev) => [...created, ...prev]);
+        showToast(`Logged ${created.length} task entries successfully!`);
+      }
+
+      setEditingTaskId(null);
+      setTaskItems([
+        {
+          id: `item-${Date.now()}`,
+          projectId: projects[0]?._id || "",
+          taskName: "",
+          status: "Completed",
+          priority: "Medium",
+          hours: 1,
+          minutes: 0,
+        },
+      ]);
+      setIsModalOpen(false);
+    } catch (err: any) {
+      setFormError(err?.response?.data?.message || "Failed to save task.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    saveTasks(updatedTasks);
-    setEditingTaskId(null);
-
-    setTaskItems([
-      {
-        id: `item-${Date.now()}`,
-        projectId: staticProjects[0].id,
-        taskName: "",
-        status: "Completed",
-        priority: "Medium",
-        hours: 1,
-        minutes: 0,
-      },
-    ]);
-    setIsModalOpen(false);
-
-    setTimeout(() => setToastMessage(null), 4500);
   };
 
   const handleEditTask = (task: Task) => {
-    const project = staticProjects.find((p) => p.name === task.projectName) || staticProjects[0];
+    // Find matching project by name (since task.projectName is populated)
+    const project = projects.find((p) => p.name === task.projectName) || projects[0];
 
     setTaskItems([
       {
         id: `item-edit-${task.id}`,
-        projectId: project.id,
+        projectId: project?._id || "",
         taskName: task.taskName,
         status: task.status,
         priority: task.priority,
         hours: Math.floor(task.totalMinutes / 60),
         minutes: task.totalMinutes % 60,
-      }
+      },
     ]);
     setSelectedDate(task.endDate);
     setEditingTaskId(task.id);
     setIsModalOpen(true);
   };
 
-  const handleRemoveTask = (id: string) => {
-    const updatedTasks = tasks.filter((task) => task.id !== id);
-    saveTasks(updatedTasks);
+  const handleRemoveTask = async (id: string) => {
+    try {
+      await deleteTask(id);
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+      showToast("Task deleted.");
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to delete task.");
+    }
   };
 
-  const currentStaff = staticStaff[selectedStaffIndex];
-
-  const staffTasks = tasks.filter(
-    (t) => t.userName.toLowerCase() === currentStaff.name.toLowerCase()
+  // ── Filter tasks for current logged-in user ─────────────────────────────────
+  const myTasks = tasks.filter(
+    (t) => t.userEmail?.toLowerCase() === user?.email?.toLowerCase()
   );
 
-  const groupedStaffTasks = useMemo(() => {
+  const groupedTasks = useMemo(() => {
     const groups: { [date: string]: Task[] } = {};
-    staffTasks.forEach((task) => {
+    myTasks.forEach((task) => {
       const dateStr = task.endDate;
       if (!groups[dateStr]) groups[dateStr] = [];
       groups[dateStr].push(task);
@@ -335,7 +271,7 @@ export default function StaffTaskLoggingPage() {
         const totalMin = list.reduce((sum, t) => sum + t.totalMinutes, 0);
         return { date, tasks: list, totalMinutes: totalMin };
       });
-  }, [staffTasks]);
+  }, [myTasks]);
 
   const getStatusBadge = (status: Task["status"]) => {
     switch (status) {
@@ -363,7 +299,8 @@ export default function StaffTaskLoggingPage() {
     return (
       <Sidebar>
         <div className="flex min-h-[60vh] items-center justify-center">
-          <div className="text-sm font-semibold text-theme-fg-muted animate-pulse">
+          <div className="flex items-center gap-2 text-sm font-semibold text-theme-fg-muted">
+            <Loader2 className="h-4 w-4 animate-spin" />
             Loading Workspace...
           </div>
         </div>
@@ -382,52 +319,49 @@ export default function StaffTaskLoggingPage() {
           </div>
         )}
 
+        {/* API Error Banner */}
+        {apiError && (
+          <div className="rounded-xl bg-theme-error-bg border border-theme-error/20 px-4 py-3 text-sm text-theme-error-fg">
+            ⚠️ {apiError}
+          </div>
+        )}
+
         {/* Header section */}
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-theme-border pb-6">
           <div>
-       
             <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-theme-fg">
               Task Reporting
             </h1>
+            <p className="text-sm text-theme-fg-secondary mt-1">
+              Logged in as{" "}
+              <span className="font-semibold text-theme-fg">{user?.name}</span>
+            </p>
           </div>
 
           <div className="flex items-center gap-3 self-start sm:self-auto">
-            {/* Staff Profile selector */}
-            <Select
-              options={staticStaff.map((staff, idx) => ({
-                value: String(idx),
-                label: staff.name,
-              }))}
-              value={String(selectedStaffIndex)}
-              onChange={(e) => setSelectedStaffIndex(Number(e.target.value))}
-              className="!py-1.5 !text-xs"
-            />
-
-            {user?.role !== "admin" && (
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => {
-                  setEditingTaskId(null);
-                  setTaskItems([
-                    {
-                      id: `item-init-${Date.now()}`,
-                      projectId: staticProjects[0].id,
-                      taskName: "",
-                      status: "In Progress",
-                      priority: "Medium",
-                      hours: 1,
-                      minutes: 0,
-                    },
-                  ]);
-                  setSelectedDate(new Date().toISOString().split("T")[0]);
-                  setIsModalOpen(true);
-                }}
-              >
-                <Plus className="-ml-1 mr-1.5 h-4 w-4" />
-                Report Tasks
-              </Button>
-            )}
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => {
+                setEditingTaskId(null);
+                setTaskItems([
+                  {
+                    id: `item-init-${Date.now()}`,
+                    projectId: projects[0]?._id || "",
+                    taskName: "",
+                    status: "In Progress",
+                    priority: "Medium",
+                    hours: 1,
+                    minutes: 0,
+                  },
+                ]);
+                setSelectedDate(new Date().toISOString().split("T")[0]);
+                setIsModalOpen(true);
+              }}
+            >
+              <Plus className="-ml-1 mr-1.5 h-4 w-4" />
+              Report Tasks
+            </Button>
           </div>
         </header>
 
@@ -439,12 +373,11 @@ export default function StaffTaskLoggingPage() {
                 Your Logged Submissions
               </h2>
             </div>
-           
           </div>
 
           <div className="flex-1 space-y-6 overflow-y-auto max-h-[600px] pr-1">
-            {groupedStaffTasks.length > 0 ? (
-              groupedStaffTasks.map((group) => (
+            {groupedTasks.length > 0 ? (
+              groupedTasks.map((group) => (
                 <div key={group.date} className="space-y-3">
                   {/* Date Separator */}
                   <div className="flex items-center justify-between bg-theme-bg-inset px-4 py-2.5 rounded-xl border border-theme-border">
@@ -459,7 +392,9 @@ export default function StaffTaskLoggingPage() {
                         })}
                       </span>
                     </div>
-                 
+                    <span className="text-xs font-medium text-theme-fg-muted">
+                      {formatMinutes(group.totalMinutes)} total
+                    </span>
                   </div>
 
                   {/* Day Tasks */}
@@ -478,7 +413,9 @@ export default function StaffTaskLoggingPage() {
                           <h4 className="text-sm font-bold text-theme-fg">
                             {task.taskName}
                           </h4>
-                       
+                          <p className="text-xs text-theme-fg-muted">
+                            {formatMinutes(task.totalMinutes)}
+                          </p>
                         </div>
 
                         <div className="mt-4 flex items-center justify-between md:mt-0 md:gap-4">
@@ -490,24 +427,22 @@ export default function StaffTaskLoggingPage() {
                             {task.status}
                           </span>
 
-                          {user?.role !== "admin" && (
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => handleEditTask(task)}
-                                className="rounded-lg p-1.5 text-theme-fg-muted hover:bg-theme-info-bg hover:text-theme-info transition-colors cursor-pointer"
-                                title="Edit submission entry"
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleRemoveTask(task.id)}
-                                className="rounded-lg p-1.5 text-theme-fg-muted hover:bg-theme-error-bg hover:text-theme-error transition-colors cursor-pointer"
-                                title="Delete submission entry"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleEditTask(task)}
+                              className="rounded-lg p-1.5 text-theme-fg-muted hover:bg-theme-info-bg hover:text-theme-info transition-colors cursor-pointer"
+                              title="Edit submission entry"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleRemoveTask(task.id)}
+                              className="rounded-lg p-1.5 text-theme-fg-muted hover:bg-theme-error-bg hover:text-theme-error transition-colors cursor-pointer"
+                              title="Delete submission entry"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -518,8 +453,8 @@ export default function StaffTaskLoggingPage() {
               <div className="flex h-full flex-col items-center justify-center py-20 text-center text-theme-fg-muted">
                 <AlertTriangle className="h-10 w-10 mb-2 opacity-40" />
                 <span className="text-xs font-medium">
-                  No tasks logged by you yet. Click &quot;Report Tasks&quot; to
-                  submit timesheets.
+                  No tasks logged yet. Click &quot;Report Tasks&quot; to submit
+                  timesheets.
                 </span>
               </div>
             )}
@@ -529,11 +464,16 @@ export default function StaffTaskLoggingPage() {
         {/* Log Task Modal */}
         <Modal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setFormError(null);
+          }}
           title={editingTaskId ? "Edit Task" : "Daily Reporting"}
           size="xl"
         >
           <form onSubmit={handleFormSubmit} className="space-y-5">
+            <FormError message={formError} />
+            
             {/* Profile and Date */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-theme-bg-inset p-4 rounded-xl border border-theme-border">
               <div>
@@ -541,9 +481,9 @@ export default function StaffTaskLoggingPage() {
                   Staff
                 </span>
                 <div className="font-bold flex-col text-sm text-theme-fg">
-                  {currentStaff.name}{" "}
+                  {user?.name}{" "}
                   <span className="font-normal text-xs text-theme-fg-secondary">
-                    ({currentStaff.email})
+                    ({user?.email})
                   </span>
                 </div>
               </div>
@@ -562,18 +502,28 @@ export default function StaffTaskLoggingPage() {
                 <span className="text-xs font-bold text-theme-fg-secondary uppercase tracking-wider">
                   Task Entries
                 </span>
-
               </div>
 
-              {taskItems.map((item, index) => (
+              {taskItems.map((item) => (
                 <div
                   key={item.id}
                   className="relative p-4 rounded-xl border border-theme-border bg-theme-bg-surface space-y-3"
                 >
-
-
                   {/* Project & Task Name */}
-                  <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-3 items-end">
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                    {/* Project */}
+                    <Select
+                      label="Project"
+                      options={projects.map((p) => ({
+                        value: p._id,
+                        label: p.name,
+                      }))}
+                      value={item.projectId}
+                      onChange={(e) =>
+                        handleUpdateTaskItem(item.id, "projectId", e.target.value)
+                      }
+                    />
+
                     {/* Task */}
                     <Input
                       label="Task"
@@ -586,7 +536,22 @@ export default function StaffTaskLoggingPage() {
                       }
                     />
 
-                    {/* Status */}
+                    {/* Delete row */}
+                    <div className="flex items-end h-full pb-1">
+                      {taskItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTaskRow(item.id)}
+                          className="h-10 w-10 flex items-center justify-center text-red-500 transition cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status, Priority, Time */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
                     <Select
                       label="Status"
                       options={statusOptions}
@@ -595,22 +560,43 @@ export default function StaffTaskLoggingPage() {
                         handleUpdateTaskItem(item.id, "status", e.target.value)
                       }
                     />
-
-                    {/* Delete */}
-                    <div className="flex items-end h-full pb-1">
-                      {taskItems.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveTaskRow(item.id)}
-                          className="h-10 w-10 flex items-center justify-center text-red-500  transition cursor-pointer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
+                    <Select
+                      label="Priority"
+                      options={priorityOptions}
+                      value={item.priority}
+                      onChange={(e) =>
+                        handleUpdateTaskItem(item.id, "priority", e.target.value)
+                      }
+                    />
+                    <Input
+                      label="Hours"
+                      type="number"
+                      min={0}
+                      max={24}
+                      value={item.hours}
+                      onChange={(e) =>
+                        handleUpdateTaskItem(
+                          item.id,
+                          "hours",
+                          Number(e.target.value)
+                        )
+                      }
+                    />
+                    <Input
+                      label="Minutes"
+                      type="number"
+                      min={0}
+                      max={59}
+                      value={item.minutes}
+                      onChange={(e) =>
+                        handleUpdateTaskItem(
+                          item.id,
+                          "minutes",
+                          Number(e.target.value)
+                        )
+                      }
+                    />
                   </div>
-
-
                 </div>
               ))}
 
@@ -622,7 +608,7 @@ export default function StaffTaskLoggingPage() {
                   className="w-full flex items-center justify-center py-2.5 border-2 border-dashed border-theme-border rounded-xl text-xs font-semibold text-theme-fg-muted hover:border-theme-primary hover:text-theme-primary transition-colors cursor-pointer"
                 >
                   <Plus className="mr-1.5 h-4 w-4" />
-                  <span>Add task </span>
+                  <span>Add task</span>
                 </button>
               )}
             </div>
@@ -636,7 +622,7 @@ export default function StaffTaskLoggingPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" variant="primary">
+              <Button type="submit" variant="primary" isLoading={isSubmitting}>
                 {editingTaskId ? "Update Task" : "Submit Report"}
               </Button>
             </div>

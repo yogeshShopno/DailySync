@@ -7,129 +7,39 @@ import Sidebar from "../../components/Sidebar";
 import TaskStats from "../../components/TaskStats";
 import TaskChart from "../../components/TaskChart";
 import TaskTable from "../../components/TaskTable";
-import Button from "../../components/ui/Button";
-import { Download, ShieldAlert } from "lucide-react";
-
-interface Task {
-  id: string;
-  taskName: string;
-  userName: string;
-  userEmail: string;
-  startDate: string;
-  endDate: string;
-  totalMinutes: number;
-  status: "Completed" | "In Progress" | "Pending" | "Blocked";
-  priority: "Low" | "Medium" | "High";
-  projectName?: string;
-}
-
-const initialTasks: Task[] = [
-  {
-    id: "task-1",
-    taskName: "Complete Backend User Authentication",
-    userName: "Yogesh Jain",
-    userEmail: "yogesh@dailysync.com",
-    startDate: "2026-07-01",
-    endDate: "2026-07-05",
-    totalMinutes: 240,
-    status: "Completed",
-    priority: "High",
-    projectName: "DailySync Dashboard",
-  },
-  {
-    id: "task-2",
-    taskName: "Setup MongoDB connection and schemas",
-    userName: "John Doe",
-    userEmail: "john@dailysync.com",
-    startDate: "2026-07-02",
-    endDate: "2026-07-04",
-    totalMinutes: 180,
-    status: "Completed",
-    priority: "High",
-    projectName: "DailySync Dashboard",
-  },
-  {
-    id: "task-3",
-    taskName: "Build Task Reporting Dashboard UI",
-    userName: "Yogesh Jain",
-    userEmail: "yogesh@dailysync.com",
-    startDate: "2026-07-08",
-    endDate: "2026-07-10",
-    totalMinutes: 120,
-    status: "In Progress",
-    priority: "High",
-    projectName: "DailySync Dashboard",
-  },
-  {
-    id: "task-4",
-    taskName: "Design UI components & cards",
-    userName: "Sarah Connor",
-    userEmail: "sarah@dailysync.com",
-    startDate: "2026-07-04",
-    endDate: "2026-07-07",
-    totalMinutes: 150,
-    status: "Completed",
-    priority: "Medium",
-    projectName: "Customer Mobile App",
-  },
-  {
-    id: "task-5",
-    taskName: "Integrate push notification service",
-    userName: "John Doe",
-    userEmail: "john@dailysync.com",
-    startDate: "2026-07-10",
-    endDate: "2026-07-15",
-    totalMinutes: 0,
-    status: "Pending",
-    priority: "Medium",
-    projectName: "Customer Mobile App",
-  },
-  {
-    id: "task-6",
-    taskName: "Fix navigation drawer styling bug",
-    userName: "Sarah Connor",
-    userEmail: "sarah@dailysync.com",
-    startDate: "2026-07-08",
-    endDate: "2026-07-09",
-    totalMinutes: 45,
-    status: "Blocked",
-    priority: "Low",
-    projectName: "Customer Mobile App",
-  },
-];
+import { ShieldAlert, Loader2 } from "lucide-react";
+import { fetchTasks, fetchDashboardStats, type Task, type DashboardStats } from "../../services/taskService";
 
 export default function AdminTaskReportingPage() {
   const { isAuthenticated, user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("dailysync-tasks");
-      if (stored) {
-        setTasks(JSON.parse(stored));
-      } else {
-        setTasks(initialTasks);
-        try {
-          localStorage.setItem("dailysync-tasks", JSON.stringify(initialTasks));
-        } catch (e) {}
-      }
-    } catch (error) {
-      console.warn("Could not access localStorage:", error);
-      setTasks(initialTasks);
-    } finally {
+    if (!isAuthenticated || user?.role !== "admin") {
       setIsLoaded(true);
+      return;
     }
-  }, []);
 
-  const handleExport = () => {
-    setIsExporting(true);
-    setTimeout(() => {
-      setIsExporting(false);
-      alert("Report exported successfully as CSV!");
-    }, 850);
-  };
+    const loadData = async () => {
+      try {
+        const [tasksData, statsData] = await Promise.all([
+          fetchTasks(),
+          fetchDashboardStats(),
+        ]);
+        setTasks(tasksData);
+        setStats(statsData);
+      } catch (err: any) {
+        setApiError(err?.response?.data?.message || "Failed to load data.");
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+
+    loadData();
+  }, [isAuthenticated, user]);
 
   if (!isAuthenticated) return <LoginPanel />;
 
@@ -155,7 +65,8 @@ export default function AdminTaskReportingPage() {
     return (
       <Sidebar>
         <div className="flex min-h-[60vh] items-center justify-center">
-          <div className="text-sm font-semibold text-theme-fg-muted animate-pulse">
+          <div className="flex items-center gap-2 text-sm font-semibold text-theme-fg-muted">
+            <Loader2 className="h-4 w-4 animate-spin" />
             Loading Analytics...
           </div>
         </div>
@@ -169,21 +80,37 @@ export default function AdminTaskReportingPage() {
         {/* Header Section */}
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-theme-border pb-6">
           <div>
-            
             <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-theme-fg sm:text-3xl">
               Staff Reports
             </h1>
+            <p className="text-sm text-theme-fg-secondary mt-1">
+              {stats?.total || tasks.length} total tasks across all staff
+            </p>
           </div>
-
-  
         </header>
+
+        {/* API Error Banner */}
+        {apiError && (
+          <div className="rounded-xl bg-theme-error-bg border border-theme-error/20 px-4 py-3 text-sm text-theme-error-fg">
+            ⚠️ {apiError}
+          </div>
+        )}
+
+        {/* Stats */}
+        <section aria-label="Task Statistics">
+          <TaskStats stats={stats} tasks={tasks} />
+        </section>
+
+        {/* Charts */}
+        <section aria-label="Task Visualizations">
+          <TaskChart stats={stats} tasks={tasks} />
+        </section>
 
         {/* Detailed Tasks Table */}
         <section
           aria-label="Detailed Tasks List"
           className="space-y-4 border-t border-theme-border pt-6"
         >
-          
           <TaskTable tasks={tasks} />
         </section>
       </div>
